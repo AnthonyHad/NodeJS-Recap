@@ -2,6 +2,7 @@ const crypto = require("crypto");
 
 const bcrypt = require("bcryptjs");
 //should add nodemailer and an email service
+const { validationResult } = require("express-validator");
 
 const User = require("../models/user");
 
@@ -29,6 +30,7 @@ exports.getSignup = (req, res, next) => {
   res.render("auth/signup", {
     path: "/signup",
     pageTitle: "Signup",
+    erroMessage: message,
   });
 };
 
@@ -66,6 +68,16 @@ exports.postSignup = (req, res, next) => {
   const email = req.body.email;
   const password = req.body.password;
   const confirmPassword = req.body.confirmPassword;
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    console.log(errors.array());
+    // 422 indicates validation fails
+    return res.status(422).render("auth/signup", {
+      path: "/signup",
+      pageTitle: "Signup",
+      errorMessage: errors.array()[0].msg,
+    });
+  }
   User.findOne({ email: email })
     .then((userDoc) => {
       if (userDoc) {

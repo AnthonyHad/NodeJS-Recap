@@ -1,4 +1,6 @@
 const express = require("express");
+// we could import body, param, cookie etc.
+const { check, body } = require("express-validator");
 
 const authController = require("../controllers/auth");
 
@@ -10,7 +12,35 @@ router.get("/signup", authController.getSignup);
 
 router.post("/login", authController.postLogin);
 
-router.post("/signup", authController.postSignup);
+// the checks are based on the inputs in our views
+router.post(
+  "/signup",
+  [
+    check("email")
+      .isEmail()
+      .withMessage("Please enter a valid email")
+      .custom((value, { req }) => {
+        if (value === "test@test.com") {
+          throw new Error("This email address is forbidenn");
+        }
+        return true;
+      }),
+    // in order not repeat the .withMessage after every validation we could wrap it as a second argument
+    body(
+      "password",
+      "Please enter a password with only numbers and text and at least 5 characters"
+    )
+      .isLength({ min: 5 })
+      .isAlphanumeric(),
+    body("confirmPassword").custom((value, { req }) => {
+      if (value !== req.body.password) {
+        throw new Error("passwords have to match!");
+      }
+      return true;
+    }),
+  ],
+  authController.postSignup
+);
 
 router.post("/logout", authController.postLogout);
 
