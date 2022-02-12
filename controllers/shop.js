@@ -2,7 +2,8 @@ const Product = require("../models/product");
 const Order = require("../models/order");
 
 exports.getProducts = (req, res, next) => {
-  Product.find()
+  // one way to do authorizations is to add restrictions on what product we retrieve
+  Product.find({ userId: req.user._id })
     .then((products) => {
       console.log(products);
       res.render("shop/product-list", {
