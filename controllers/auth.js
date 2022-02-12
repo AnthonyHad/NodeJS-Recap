@@ -1,47 +1,61 @@
-const crypto = require("crypto");
+const crypto = require('crypto');
 
-const bcrypt = require("bcryptjs");
+const bcrypt = require('bcryptjs');
 //should add nodemailer and an email service
-const { validationResult } = require("express-validator");
+const { validationResult } = require('express-validator');
 
-const User = require("../models/user");
+const User = require('../models/user');
 
 exports.getLogin = (req, res, next) => {
-  let message = req.flash("error");
+  let message = req.flash('error');
   if (message.length > 0) {
     message = message[0];
   } else {
     message = null;
   }
-  res.render("auth/login", {
-    path: "/login",
-    pageTitle: "Login",
+  res.render('auth/login', {
+    path: '/login',
+    pageTitle: 'Login',
     errorMessage: message,
   });
 };
 
 exports.getSignup = (req, res, next) => {
-  let message = req.flash("error");
+  let message = req.flash('error');
   if (message.length > 0) {
     message = message[0];
   } else {
     message = null;
   }
-  res.render("auth/signup", {
-    path: "/signup",
-    pageTitle: "Signup",
+  res.render('auth/signup', {
+    path: '/signup',
+    pageTitle: 'Signup',
     errorMessage: message,
+    oldInput: {
+      email: '',
+      password: '',
+      confirmPassword: req.body.confirmPassword,
+    },
+    validationErrors: [],
   });
 };
 
 exports.postLogin = (req, res, next) => {
   const email = req.body.email;
   const password = req.body.password;
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(422).render('auth/login', {
+      path: '/login',
+      pageTitle: 'Login',
+      errorMessage: errors.array()[0].msg,
+    });
+  }
   User.findOne({ email: email })
     .then((user) => {
       if (!user) {
-        req.flash("error", "Invalid Email or Password");
-        return res.redirect("login");
+        req.flash('error', 'Invalid Email or Password');
+        return res.redirect('login');
       }
       bcrypt
         .compare(password, user.password)
@@ -51,14 +65,14 @@ exports.postLogin = (req, res, next) => {
             req.session.user = user;
             return req.session.save((err) => {
               console.log(err);
-              res.redirect("/");
+              res.redirect('/');
             });
           }
-          res.redirect("/login");
+          res.redirect('/login');
         })
         .catch((err) => {
           console.log(err);
-          res.redirect("/login");
+          res.redirect('/login');
         });
     })
     .catch((err) => console.log(err));
@@ -71,10 +85,17 @@ exports.postSignup = (req, res, next) => {
   if (!errors.isEmpty()) {
     console.log(errors.array());
     // 422 indicates validation fails
-    return res.status(422).render("auth/signup", {
-      path: "/signup",
-      pageTitle: "Signup",
+    return res.status(422).render('auth/signup', {
+      path: '/signup',
+      pageTitle: 'Signup',
       errorMessage: errors.array()[0].msg,
+      //we should keep what the user has input for better UX
+      oldInput: {
+        email: email,
+        password: password,
+        confirmPassword: req.body.confirmPassword,
+      },
+      validationErrors: errors.array(),
     });
   }
   //makes more sense to check for the email if it exists in the DB as part of the validation
@@ -95,7 +116,7 @@ exports.postSignup = (req, res, next) => {
       return user.save();
     })
     .then((result) => {
-      res.redirect("/login");
+      res.redirect('/login');
     })
     .catch((err) => {
       console.log(err);
@@ -105,20 +126,20 @@ exports.postSignup = (req, res, next) => {
 exports.postLogout = (req, res, next) => {
   req.session.destroy((err) => {
     console.log(err);
-    res.redirect("/");
+    res.redirect('/');
   });
 };
 
 exports.getReset = (req, res, next) => {
-  let message = req.flash("error");
+  let message = req.flash('error');
   if (message.length > 0) {
     message = message[0];
   } else {
     message = null;
   }
-  res.render("auth/reset", {
-    path: "/reset",
-    pageTitle: "Reset Password",
+  res.render('auth/reset', {
+    path: '/reset',
+    pageTitle: 'Reset Password',
     errorMessage: message,
   });
 };
@@ -127,14 +148,14 @@ exports.postReset = (req, res, next) => {
   crypto.randomBytes(32, (err, buffer) => {
     if (err) {
       console.log(err);
-      return res.redirect("/reset");
+      return res.redirect('/reset');
     }
-    const token = buffer.toString("hex");
+    const token = buffer.toString('hex');
     User.findOne({ email: req.body.email })
       .then((user) => {
         if (!user) {
-          req.flash("error", "No account with that email found");
-          return res.redirect("/reset");
+          req.flash('error', 'No account with that email found');
+          return res.redirect('/reset');
         }
         user.resetToken = token;
         user.resetTokenExpiration = Date.now() + 3600000;
@@ -143,7 +164,7 @@ exports.postReset = (req, res, next) => {
       .then((result) => {
         //user nodemailer transporter here
         //link in the mailer should include a string interpolation with the token we generated
-        req.flash("error", "Email Sent");
+        req.flash('error', 'Email Sent');
         return res.redirect(`/reset/${token}`);
       })
       .catch((err) => {
@@ -157,15 +178,15 @@ exports.getNewPassword = (req, res, next) => {
   console.log(token);
   User.findOne({ resetToken: token, resetTokenExpiration: { $gt: Date.now() } })
     .then((user) => {
-      let message = req.flash("error");
+      let message = req.flash('error');
       if (message.length > 0) {
         message = message[0];
       } else {
         message = null;
       }
-      res.render("auth/new-password", {
-        path: "/new-password",
-        pageTitle: "New Password",
+      res.render('auth/new-password', {
+        path: '/new-password',
+        pageTitle: 'New Password',
         errorMessage: message,
         userId: user._id.toString(),
         passwordToken: token,
@@ -198,7 +219,7 @@ exports.postNewPassword = (req, res, next) => {
       return resetUser.save();
     })
     .then((result) => {
-      res.redirect("/login");
+      res.redirect('/login');
     })
     .catch((err) => {
       console.log(err);
