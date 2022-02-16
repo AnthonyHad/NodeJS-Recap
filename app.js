@@ -43,7 +43,15 @@ app.use(
 app.use(csrfProtection);
 app.use(flash()); // can be used anywhere in our application on the request object
 
+//for every request these two fields will be added to the page rendered
 app.use((req, res, next) => {
+  res.locals.isAuthenticated = req.session.isLoggedIn;
+  res.locals.csrfToken = req.csrfToken();
+  next();
+});
+
+app.use((req, res, next) => {
+  //throw new Err()
   if (!req.session.user) {
     return next();
   }
@@ -56,15 +64,9 @@ app.use((req, res, next) => {
       next();
     })
     .catch((err) => {
-      throw new Error(err); // we could also call next() (not ideal)
+      // cannot use throw because of async requests
+      next(new Error(err));
     });
-});
-
-//for every request these two fields will be added to the page rendered
-app.use((req, res, next) => {
-  res.locals.isAuthenticated = req.session.isLoggedIn;
-  res.locals.csrfToken = req.csrfToken();
-  next();
 });
 
 app.use('/admin', adminRoutes);
@@ -78,7 +80,14 @@ app.use(errorController.get404);
 app.use((error, req, res, next) => {
   // we could render a page or return some JSON data
   //res.status(erro.httpStatusCode).render()..
-  res.redirect('/500');
+
+  // redirecting could trigger an infinite loop with other middlewares
+  // res.redirect('/500');
+  res.status(500).render('500', {
+    pageTitle: 'Error',
+    path: '/500',
+    isAuthenticated: req.session.isLoggedIn,
+  });
 });
 
 mongoose
